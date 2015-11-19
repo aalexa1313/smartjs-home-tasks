@@ -27,6 +27,7 @@ $(function onLoad() {
         },
         onScrollUpClicked: function _onScrollUpClicked() {
             lordSithList.scrollDown(location.attributes.name);
+            lordSithList.up
         },
         onScrollDownClicked: function _onScrollDownClicked() {
             lordSithList.scrollUp(location.attributes.name);
@@ -50,10 +51,13 @@ $(function onLoad() {
         models.LordSithList = Backbone.Collection.extend({
             model: models.LordSithModel,
             initialize: function (options) {
-                this.listener = options.listener;
+                this.onChange = options.listener;
                 this.upButton = options.upButton;
                 this.downButton = options.downButton;
                 this.location = options.location;
+            },
+            getEmptyElement: function(){
+                return new this.model();
             },
             _getUpButtonsState: function (lordsList) {
                 return (lordsList.at(0).attributes.master != null) && (lordsList.at(0).attributes.master.id != null);
@@ -80,7 +84,7 @@ $(function onLoad() {
                     if (!master.attributes.name) {
                         master.request = master.fetch({ url: rootUrl + lord.attributes.master.id.toString() });
                         master.request.done((function () {
-                            this.listener();
+                            this.onChange();
                         }).bind(this));
                     }
                 }
@@ -97,7 +101,7 @@ $(function onLoad() {
                     if (!apprentice.attributes.name) {
                         apprentice.request = apprentice.fetch({ url: rootUrl + lord.attributes.apprentice.id.toString() })
                         apprentice.request.done((function () {
-                            this.listener();
+                            this.onChange();
                         }).bind(this));
                     }
                 }
@@ -116,33 +120,32 @@ $(function onLoad() {
                         lord.set('captured', false);
                     }
                 }
-                if (captured) {
-                    return;
+                if (!captured) {
+                    this.upButton.set('enabled', this._getUpButtonsState(this));
+                    this.downButton.set('enabled', this._getDownButtonsState(this));
+                    this._fetchApprentices();
+                    this._fetchMasters();
                 }
-                this.upButton.set('enabled', this._getUpButtonsState(this));
-                this.downButton.set('enabled', this._getDownButtonsState(this));
-                this._fetchApprentices();
-                this._fetchMasters();
             },
-            scrollDown: function (obiwanLocation) {
+            scrollDown: function () {
                 var lord;
                 lord = this.pop();
                 lord.cancelRequest();
                 lord = this.pop();
                 lord.cancelRequest();
-                this.unshift(new Models.LordSithModel());
-                this.unshift(new Models.LordSithModel());
-                this.update(obiwanLocation);
+                this.unshift(lordSithList.getEmptyElement());
+                this.unshift(lordSithList.getEmptyElement());
+                this.onChange();
             },
-            scrollUp: function scrollUp(obiwanLocation) {
+            scrollUp: function scrollUp() {
                 var lord;
                 lord = this.shift();
                 lord.cancelRequest();
                 lord = this.shift();
                 lord.cancelRequest();
-                this.push(new Models.LordSithModel());
-                this.push(new Models.LordSithModel());
-                this.update(obiwanLocation);
+                this.push(lordSithList.getEmptyElement());
+                this.push(lordSithList.getEmptyElement());
+                this.onChange();
             }
         });
         return models;
@@ -222,16 +225,17 @@ $(function onLoad() {
 // --------------------------- Lords view ----------------------------------------------
     var lordSithList = new Models.LordSithList({ listener: controller.onLordSithCollectionChange, upButton: scrollUpButton, downButton: scrollDownButton, location: location , url: rootUrl});
     lordSithList.reset();
-    var lord = new Models.LordSithModel();
+    //var lord = new Models.LordSithModel();
+    var lord = lordSithList.getEmptyElement();
     lord.request = lord.fetch({ url: rootUrl + darthSidiuosUrl });
     lord.request.done( (function () {
-        this.collection.listener();
+        this.collection.onChange();
     }).bind(lord));
     lordSithList.push(lord);
-    lordSithList.push(new Models.LordSithModel());
-    lordSithList.push(new Models.LordSithModel());
-    lordSithList.push(new Models.LordSithModel());
-    lordSithList.push(new Models.LordSithModel());
+    lordSithList.push(lordSithList.getEmptyElement());
+    lordSithList.push(lordSithList.getEmptyElement());
+    lordSithList.push(lordSithList.getEmptyElement());
+    lordSithList.push(lordSithList.getEmptyElement());
     lordSithList.update();
 
     var lordListView = new Views.LordListView({ model: lordSithList, className: 'css-slots', listener: controller.onLordSithCollectionChange });
