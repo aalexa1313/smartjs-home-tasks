@@ -188,7 +188,6 @@ $(function onLoad() {
         views.LordListView = Backbone.View.extend({
             initialize: function (options) {
                 this.setElement($('.' + this.className));
-                this.listener = options.listener;
                 this.listenTo(this.model, 'change', this.render);
             },
             template: _.template('<li class="css-slot"><h3><%= name %></h3><h6>Homeworld: <%= homeworld.name %></h6></li>'),
@@ -238,6 +237,6 @@ $(function onLoad() {
     lordSithList.push(lordSithList.getEmptyElement());
     lordSithList.update();
 
-    var lordListView = new Views.LordListView({ model: lordSithList, className: 'css-slots', listener: controller.onLordSithCollectionChange });
+    var lordListView = new Views.LordListView({ model: lordSithList, className: 'css-slots' });
     lordListView.render();
 });
