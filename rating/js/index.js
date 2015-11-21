@@ -2,31 +2,30 @@
 $(function onLoad() {
     var updateRatingUrl = 'ws://rating.smartjs.academy/rating';
     var initUrl = 'http://rating.smartjs.academy/rating';
-    //var ws;
     var controller = {
         init: function () {
-            controller.messageReceiver = null;
-            controller.users = null;
-            controller.usersView = null;
-            controller.ws = new WebSocket(updateRatingUrl);
-            controller.ws.onclose = controller.onSocketClose;
-            controller.ws.onmessage = controller.onConnecting;
+            this.messageReceiver = null;
+            this.users = null;
+            this.usersView = null;
+            this.ws = new WebSocket(updateRatingUrl);
+            this.ws.onclose = this.onSocketClose.bind(this);
+            this.ws.onmessage = this.onConnecting.bind(this);
         },
         initUsers: function () {
-            controller.messageReceiver = new Models.Buffer();
-            controller.users = new Models.Users();
-            controller.usersView = new Views.UsersView({ model: controller.users, className: 'css-slots' });
-            controller.users.fetch({ url: initUrl, success: controller.onUsersFetched });
-            controller.ws.onmessage = controller.onRatingChange;
+            this.messageReceiver = new Models.Buffer(); // create tmp buffer for messages
+            this.users = new Models.Users();
+            this.usersView = new Views.UsersView({ model: this.users, className: 'css-slots' });
+            this.users.fetch({ url: initUrl, success: this.onUsersFetched.bind(this) });
+            this.ws.onmessage = this.onRatingChange.bind(this);
         },
         onConnecting : function (event) {
             var message;
             if (event) {
                 message = JSON.parse(event.data);
                 if (message.status != 'CONNECTED') {
-                    controller.init();
+                    this.init();
                 } else {
-                    controller.initUsers();
+                    this.initUsers();
                 }
             }
         },
@@ -34,22 +33,22 @@ $(function onLoad() {
             var message;
             if (event) {
                 message = JSON.parse(event.data);
-                if (!controller.messageReceiver.receive(message)) {
-                    controller.init();
+                if (!this.messageReceiver.receive(message)) {
+                    this.init(); // We lost packet, try to reInit app
                 } else {
-                    controller.usersView.render();
+                    this.usersView.render();
                 }
             }
         },
         onUsersFetched : function() {
-            if (!controller.users.receiveMessages(controller.messageReceiver.asArray())) {
-                controller.init();
+            if (!this.users.receiveMessages(this.messageReceiver.asArray())) {
+                this.init(); // We lost packet in tmp buffer, try to reInit app
             } else {
-                controller.messageReceiver = controller.users;
+                this.messageReceiver = this.users;
             }
         },
         onSocketClose: function () {
-            controller.init();
+            this.init();
         }
     };
     var Models = (function () {
@@ -75,8 +74,11 @@ $(function onLoad() {
                 return response.records;
             },
             receive: function (message) {
-                if (this.version != message.fromVersion) {
-                    return false;
+                if (this.version < message.fromVersion) {
+                    return false; // We lost packed
+                };
+                if (this.version > message.fromVersion) {
+                    return true; // Old packet, skip
                 };
                 this.set(message.updates, { remove: false, sort: false });
                 this.sort();
